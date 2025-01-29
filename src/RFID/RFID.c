@@ -43,13 +43,11 @@ void MFRC522_init()
   rfid.PCD_Init();
 }
 
-void MFRC522_wait_for_read()
+int MFRC522_wait_for_read()
 {
-  while(1)
-  {
-      // Reset the loop if no new card present on the sensor/reader. This saves
+    // Reset the loop if no new card present on the sensor/reader. This saves
     // the entire process when idle.
-    
+    while(1){
     if (!rfid.PICC_IsNewCardPresent()) continue;
  
     // Verify if the NUID has been readed
@@ -65,33 +63,33 @@ void MFRC522_wait_for_read()
         piccType != MFRC522::PICC_TYPE_MIFARE_1K &&
         piccType != MFRC522::PICC_TYPE_MIFARE_4K) {
       //printf("Your tag is not of type MIFARE Classic.\n");
-      continue;
+      return ERROR_TYPE_NOT_KNOWN;
     }
 
-    if (rfid.uid.uidByte[0] != nuidPICC[0] ||
-        rfid.uid.uidByte[1] != nuidPICC[1] ||
-        rfid.uid.uidByte[2] != nuidPICC[2] ||
-        rfid.uid.uidByte[3] != nuidPICC[3]) {
-      printf("A new card has been detected.\n");
+//    if (rfid.uid.uidByte[0] != nuidPICC[0] ||
+//        rfid.uid.uidByte[1] != nuidPICC[1] ||
+//        rfid.uid.uidByte[2] != nuidPICC[2] ||
+//        rfid.uid.uidByte[3] != nuidPICC[3]) {
+//      printf("A new card has been detected.\n");
 
       // Store NUID into nuidPICC array
       for (size_t i = 0; i < 4; i++) {
         nuidPICC[i] = rfid.uid.uidByte[i];
       }
-      printf("The NUID tag is:\n");
-      printf("In hex: ");
-      printHex(rfid.uid.uidByte, rfid.uid.size);
-      printf("\nIn dec: ");
-      printDec(rfid.uid.uidByte, rfid.uid.size);
-      printf("\n");
-    } else
-      printf("Card read previously.\n");
+//      printf("The NUID tag is:\n");
+//      printf("In hex: ");
+//      printHex(rfid.uid.uidByte, rfid.uid.size);
+//      printf("\nIn dec: ");
+//      printDec(rfid.uid.uidByte, rfid.uid.size);
+//      printf("\n");
+//    } else
+//      printf("Card read previously.\n");
 
     // Halt PICC
     rfid.PICC_HaltA();
 
     // Stop encryption on PCD
     rfid.PCD_StopCrypto1();
-    break; // end task
+    return READ_SUCCESSFULL; // end task
   }
 }

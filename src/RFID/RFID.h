@@ -15,8 +15,11 @@
 extern MEVENT event;
 //extern MFRC522 rfid(SS_PIN, RST_PIN); 
 
+#define READ_SUCCESSFULL 0U
+#define ERROR_TYPE_NOT_KNOWN 1U
+
 
 void MFRC522_init();
-void MFRC522_wait_for_read();
+int MFRC522_wait_for_read();
 
 #endif
