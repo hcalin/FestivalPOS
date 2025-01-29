@@ -1,16 +1,9 @@
-// Adapted from
-// https://github.com/miguelbalboa/rfid/blob/master/examples/ReadNUID/ReadNUID.ino
+#include "RFID.h"
 
-#include <cstdio>
+MFRC522 rfid(SS_PIN, RST_PIN); 
+uint8_t nuidPICC[4];
 
-#include "MFRC522.h"
 
-// The GPIO pin that's connected to the MFRC522's reset pin
-#define RST_PIN RPI_V2_GPIO_P1_15
-// The GPIO pin that's connected to the MFRC522's SDA pin,
-// sometimes labeled SS or CE or CS.
-// Doesn't have to be one of the CE pins on the pi
-#define SS_PIN RPI_V2_GPIO_P1_38
 
 /**
  * Helper routine to dump a byte array as hex values.
@@ -30,31 +23,48 @@ void printDec(uint8_t *buffer, size_t bufferSize) {
   }
 }
 
-int main() {
-  MFRC522 rfid(SS_PIN, RST_PIN);  // Instance of the class
-  rfid.PCD_Init();
 
+void MFRC522_init()
+{
+	//printf("Constructor instantied\n");
+	rfid.PCD_Init();
+	//printf("PCD_Init called\n");
+  //printf(rfid.PCD_PerformSelfTest() ? "Self test OK\n" : "Self test ERROR!\n");
+  if (rfid.PCD_PerformSelfTest())
+  {
+    print_center((max_row/2) - 1, " RFID init was successfull.");
+  }
+  else
+  {
+    print_center((max_row/2) - 1, " RFID init was not successfull.");
+    getch();
+  }
   // Init array that will store new NUID
-  uint8_t nuidPICC[4];
+  rfid.PCD_Init();
+}
 
-  while (1) {
-    // Reset the loop if no new card present on the sensor/reader. This saves
+void MFRC522_wait_for_read()
+{
+  while(1)
+  {
+      // Reset the loop if no new card present on the sensor/reader. This saves
     // the entire process when idle.
+    
     if (!rfid.PICC_IsNewCardPresent()) continue;
-
+ 
     // Verify if the NUID has been readed
     if (!rfid.PICC_ReadCardSerial()) continue;
 
-    printf("PICC type: ");
+    //printf("PICC type: ");
     MFRC522::PICC_Type piccType = rfid.PICC_GetType(rfid.uid.sak);
-    printf(rfid.PICC_GetTypeName(piccType).c_str());
-    printf("\n");
+    //printf(rfid.PICC_GetTypeName(piccType).c_str());
+    //printf("\n");
 
     // Check is the PICC of Classic MIFARE type
     if (piccType != MFRC522::PICC_TYPE_MIFARE_MINI &&
         piccType != MFRC522::PICC_TYPE_MIFARE_1K &&
         piccType != MFRC522::PICC_TYPE_MIFARE_4K) {
-      printf("Your tag is not of type MIFARE Classic.\n");
+      //printf("Your tag is not of type MIFARE Classic.\n");
       continue;
     }
 
@@ -68,7 +78,6 @@ int main() {
       for (size_t i = 0; i < 4; i++) {
         nuidPICC[i] = rfid.uid.uidByte[i];
       }
-
       printf("The NUID tag is:\n");
       printf("In hex: ");
       printHex(rfid.uid.uidByte, rfid.uid.size);
@@ -83,7 +92,6 @@ int main() {
 
     // Stop encryption on PCD
     rfid.PCD_StopCrypto1();
+    break; // end task
   }
-
-  return 0;
 }

@@ -41,11 +41,16 @@ MFRC522::MFRC522(	byte chipSelectPin,		///< Arduino pin connected to MFRC522's S
 void MFRC522::PCD_WriteRegister(	PCD_Register reg,	///< The register to write to. One of the PCD_Register enums.
 									byte value			///< The value to write.
 								) {
-	SPI.beginTransaction(SPISettings(MFRC522_SPICLOCK, MSBFIRST, SPI_MODE0));	// Set the settings to work with SPI bus
+	
+
 	digitalWrite(_chipSelectPin, LOW);		// Select slave
+
 	SPI.transfer(reg);						// MSB == 0 is for writing. LSB is not used in address. Datasheet section 8.1.2.3.
+	
 	SPI.transfer(value);
+	
 	digitalWrite(_chipSelectPin, HIGH);		// Release slave again
+	
 	SPI.endTransaction(); // Stop using the SPI bus
 } // End PCD_WriteRegister()
 
@@ -191,29 +196,35 @@ void MFRC522::PCD_Init() {
 	// Set the chipSelectPin as digital output, do not select the slave yet
 	pinMode(_chipSelectPin, OUTPUT);
 	digitalWrite(_chipSelectPin, HIGH);
-	
+
 	// If a valid pin number has been set, pull device out of power down / reset state.
 	if (_resetPowerDownPin != UNUSED_PIN) {
 		// First set the resetPowerDownPin as digital input, to check the MFRC522 power down mode.
 		pinMode(_resetPowerDownPin, INPUT);
-	
+		
 		if (digitalRead(_resetPowerDownPin) == LOW) {	// The MFRC522 chip is in power down mode.
+			
 			pinMode(_resetPowerDownPin, OUTPUT);		// Now set the resetPowerDownPin as digital output.
+			
 			digitalWrite(_resetPowerDownPin, LOW);		// Make sure we have a clean LOW state.
-			delayMicroseconds(2);				// 8.8.1 Reset timing requirements says about 100ns. Let us be generous: 2μsl
+			
+			//delayMicroseconds(2);				// 8.8.1 Reset timing requirements says about 100ns. Let us be generous: 2μsl
+			delay(1);
 			digitalWrite(_resetPowerDownPin, HIGH);		// Exit power down mode. This triggers a hard reset.
 			// Section 8.8.2 in the datasheet says the oscillator start-up time is the start up time of the crystal + 37,74μs. Let us be generous: 50ms.
+			
+
 			delay(50);
 			hardReset = true;
 		}
 	}
-
 	if (!hardReset) { // Perform a soft reset if we haven't triggered a hard reset above.
 		PCD_Reset();
 	}
 	
 	// Reset baud rates
 	PCD_WriteRegister(TxModeReg, 0x00);
+
 	PCD_WriteRegister(RxModeReg, 0x00);
 	// Reset ModWidthReg
 	PCD_WriteRegister(ModWidthReg, 0x26);
@@ -352,7 +363,7 @@ bool MFRC522::PCD_PerformSelfTest() {
 	
 	// Determine firmware version (see section 9.3.4.8 in spec)
 	byte version = PCD_ReadRegister(VersionReg);
-	
+	//printf("vers:%d\n", version);
 	// Pick the appropriate reference values
 	const byte *reference;
 	switch (version) {
@@ -1903,6 +1914,7 @@ bool MFRC522::PICC_IsNewCardPresent() {
 	PCD_WriteRegister(ModWidthReg, 0x26);
 
 	MFRC522::StatusCode result = PICC_RequestA(bufferATQA, &bufferSize);
+	//printf("%d\n", result);
 	return (result == STATUS_OK || result == STATUS_COLLISION);
 } // End PICC_IsNewCardPresent()
 

@@ -83,7 +83,7 @@
 #include "Arduino.h"
 
 #ifndef MFRC522_SPICLOCK
-#define MFRC522_SPICLOCK BCM2835_SPI_CLOCK_DIVIDER_64			// MFRC522 accept upto 10MHz
+#define MFRC522_SPICLOCK BCM2835_SPI_CLOCK_DIVIDER_128			// MFRC522 accept upto 10MHz
 #endif
 
 // Firmware data for self-test

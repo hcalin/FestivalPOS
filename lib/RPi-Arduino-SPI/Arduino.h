@@ -64,8 +64,8 @@ typedef unsigned int word;
 typedef bool boolean;
 typedef uint8_t byte;
 
-unsigned long millis(void);
-unsigned long micros(void);
+unsigned int millis(void);
+unsigned int micros(void);
 
 // // WMath prototypes
 // long random(long);
