@@ -1,5 +1,12 @@
 #include "UI.h"
 
+
+volatile int stop_threads = 0U;
+pthread_t thread_getch, thread_readNUID;
+//pthread_mutex_t mutex;
+
+DB_info_s DB_info;
+
 uint8_t window_type;
 uint16_t max_row,max_col;
 MEVENT event; // Mouse event
@@ -85,7 +92,6 @@ void UI_loop()
 
 void UI_print_check_bal()
 {
-	DB_info_s DB_info;
 	uint32_t nuid = 0;
 	int retVal;
 	char ch;
@@ -205,7 +211,8 @@ void UI_print_admin()
 		}
 	}
 }
-
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 void UI_print_checkout()
 {
 	char ch;
@@ -233,7 +240,58 @@ void UI_print_checkout()
 	mvwprintw(checkout, 13, 27 , " TOTAL %d lei ", u16_total);
 	wprint_center(checkout , 16, " Waiting for scan ...");
 	wrefresh(checkout);
-	while ((ch = getch() != 'q')  )
+	nodelay(stdscr, TRUE);
+	/* Lots of shit with threads and mutexes that probably must be moved somewhere else */
+	if(pthread_create(&thread_getch, NULL, UI_thread_1, NULL) != 0)
+	{
+		wprint_center(checkout , 16, " Failed to create THREAD! Big bubu.");
+		while(1);
+		return ;
+	}
+	if(pthread_create(&thread_readNUID, NULL, UI_thread_2, NULL) != 0)
+	{
+		wprint_center(checkout , 16, " Failed to create THREAD! Big bubu.");
+		while(1);
+		//return ;
+	}
+	
+	pthread_mutex_lock(&mutex);
+	while (!stop_threads)
+	{
+		pthread_cond_wait(&cond,&mutex);
+	}
+	pthread_mutex_unlock(&mutex);
+	
+	// Cancel the other thread
+	pthread_cancel(thread_getch);
+	pthread_cancel(thread_readNUID);
+	
+	// Wait for threads to finish
+	pthread_join(thread_getch, NULL);
+	pthread_join(thread_readNUID, NULL);	
+	
+	//static int x = 0;
+	//x++;
+	//mvwprintw(stdscr,2,2, "Threads are finished %d", x);
+	
+	//refresh();
+	pthread_mutex_destroy(&mutex);
+	pthread_cond_destroy(&cond);
+
+	
+	if(stop_threads == 1)
+	{
+		UI_checkout_back_button_pressed();
+	}
+	else if(stop_threads == 2)
+	{
+		UI_checkout_card_scanned();
+	}
+	
+	stop_threads = 0;
+	/*
+	
+	while ((ch = getch() != 'q') ) // OR MFRC522_wait_for_read() == READ_SUCCESSFULL
 	{
 		if ( ch == 1 || ch == KEY_MOUSE ) 
 		{
@@ -248,7 +306,7 @@ void UI_print_checkout()
 					wrefresh(checkout);
 					clear();
 					refresh();
-					/* Go back to BAR MENU and reset sum */ 
+					// Go back to BAR MENU and reset sum 
 					window_type = BAR_MENU;
 					for( size_t idx = 0 ; idx < ITEMS_IN_BAR; idx ++)
 					bar_quantity[idx] = 0U;
@@ -258,6 +316,171 @@ void UI_print_checkout()
 			}
 		}
 	}
+	
+	*/
+}
+
+void UI_checkout_back_button_pressed()
+{
+	refresh();
+	wclear(backButton);
+	wrefresh(backButton);
+	wclear(checkout);
+	wrefresh(checkout);
+	clear();
+	refresh();
+/* Go back to BAR MENU, reset sum and stop threads */ 
+//mvwprintw(stdscr, 12, 0, "UI_checkout_back_button_pressed(); ");
+	window_type = BAR_MENU;
+	for( size_t idx = 0 ; idx < ITEMS_IN_BAR; idx ++)
+	bar_quantity[idx] = 0U;
+	u16_total = 0U;
+}
+
+
+void* UI_thread_1(void *arg)
+{
+	char ch;
+	
+	while (!stop_threads)
+	{
+		//mvwprintw(stdscr, 12, 0, "Thread1 : %d ", x);
+		//x++;
+		//refresh();
+		//if ((ch == KEY_MOUSE) || (ch == 1)) // OR MFRC522_wait_for_read() == READ_SUCCESSFULL
+		if(ch = getch() != ERR)
+		{
+			//if ( ch == 1 || ch == KEY_MOUSE ) 
+			//{
+			//	if(getmouse(&event) == OK)
+			//	{	
+			//		if(wenclose(backButton, event.y , event.x))
+			//		{
+						pthread_mutex_lock(&mutex);
+						stop_threads = 1U;
+						pthread_cond_signal(&cond);
+						pthread_mutex_unlock(&mutex);
+						//pthread_cancel(thread_readNUID);
+						//pthread_cancel(thread_getch);
+						//pthread_exit(NULL);
+						break;
+			//		}
+			//	}
+			//}
+			
+		}
+	}
+	pthread_exit(NULL);
+	return NULL;
+}
+
+void UI_checkout_card_scanned()
+{
+	int retVal = 0;
+	uint32_t nuid = 0;
+	char ch;
+	
+	clear();
+	refresh();
+	print_center( 1, "SLOPE BAR *");
+	checkout = newwin(20, 45, 4, 23);
+	box(checkout, 0,0);
+	wprint_center(checkout, 1, "< SCAN RESULTS >" );
+	wrefresh(checkout);
+	
+	for(size_t idx = 0; idx < 4; idx++)
+	{
+		nuid |= (nuidPICC[idx] << ((3-idx) * 8)) ;
+		//mvwprintw(stdscr, 10 + idx, 25, "%x %d ", nuidPICC[idx],idx);
+	}
+	//mvwprintw(stdscr, 10, 35 , "%x", nuid);
+	
+	retVal = DB_nuid_exists(nuid, &DB_info);
+	if (retVal == 1U) // if RFID id exists in the database
+	{
+		//mvwprintw(checkout, 3, 10 , "Dear %s, %d %s", DB_info.name, DB_info.balance , DB_info.date_created);
+		mvwprintw(checkout, 4, 9 , "Name .............. ");
+		mvwprintw(checkout, 4, 29 , "%s",DB_info.name);
+		mvwprintw(checkout, 6, 9 , "Balance ........... ");
+		mvwprintw(checkout, 6, 29 , "%d lei",DB_info.balance);
+		wprint_center(checkout, 13, "Created in:" );
+		mvwprintw(checkout, 15, 13, "%s", DB_info.date_created);
+	}
+	else if (retVal == 0U)
+	{
+		wprint_center(checkout, 8, "RFID bracelet is not in our database." );
+		wprint_center(checkout, 11, "That doesn't mean the beer is free..." );
+	}
+	else
+	{
+		wprint_center(checkout, 9, "Connection to the database failed. This is shit." );
+	}
+	wrefresh(checkout);
+	while ((ch = getch() != 'q')  )
+	{
+		if ( ch == 1 || ch == KEY_MOUSE ) 
+		{
+			if(getmouse(&event) == OK)
+			{	
+					clear();
+					refresh();
+					/* Go back to BAR MENU, reset sum and stop threads */ 
+					window_type = BAR_MENU;
+					for( size_t idx = 0 ; idx < ITEMS_IN_BAR; idx ++)
+					bar_quantity[idx] = 0U;
+					u16_total = 0U;
+					break;
+			}
+		}
+	}
+}
+
+void* UI_thread_2(void *arg)
+{
+	int retVal = 0;
+	char ch;
+	
+	
+	while (!stop_threads)
+	{
+		//mvwprintw(stdscr, 15, 0, "Thread2");
+		//retVal = MFRC522_wait_for_read();
+		if (MFRC522_wait_for_read() == READ_SUCCESSFULL)
+		{
+			
+			pthread_mutex_lock(&mutex);
+			stop_threads = 2U;
+			pthread_cond_signal(&cond);
+			pthread_mutex_unlock(&mutex);
+			//pthread_exit(NULL);
+			//pthread_cancel(thread_getch);
+			//pthread_cancel(thread_readNUID);
+			break;
+		}
+		else
+		{
+			wprint_center(checkout, 9, "RFID TYPE NOT SUPPORTED BY THE READER" );
+			while ((ch = getch() != 'q')  )
+			{
+				if ( ch == 1 || ch == KEY_MOUSE ) 
+				{
+					if(getmouse(&event) == OK)
+					{	
+							clear();
+							refresh();
+							window_type = BAR_MENU;
+							break;
+					}
+				}
+			}
+			stop_threads = 2U;	
+			pthread_exit(NULL);
+			//pthread_cancel(thread_getch);
+			//pthread_cancel(thread_readNUID);		
+		}
+	}
+	pthread_exit(NULL);
+	return NULL;
 }
 
 void UI_check_bar()

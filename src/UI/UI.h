@@ -4,6 +4,7 @@
 #include <ncurses.h>
 #include <string.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include "RFID.h"
 #include "../DB/DB.h"
 
@@ -32,6 +33,10 @@ void UI_print_bar_admin();
 void UI_print_checkout();
 void UI_print_admin();
 void UI_print_check_bal();
+void* UI_thread_1(void *arg);
+void* UI_thread_2(void *arg);
+void UI_checkout_back_button_pressed();
+void UI_checkout_card_scanned();
 void print_center(uint16_t row, char *title);
 void wprint_center(WINDOW * win, uint16_t row, char *title);
 void wprint_center_box(WINDOW * win, char *title);
