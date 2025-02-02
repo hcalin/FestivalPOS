@@ -1,4 +1,5 @@
  ![SLOPE festival POS](https://i.ibb.co/qF0mF7ms/Untitled-design.png)
+![GitHub Logo](https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png)
 
  Hello dear friends.
 
