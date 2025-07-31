@@ -20,10 +20,7 @@ int main() {
   /* Start UI. Go to main menu */
   UI_start();
   
-  while (1) {
-    MFRC522_wait_for_read();
-  }
-  
+  /* End program. Should never get here */
   endwin();
-  return 0;
+  return -1;
 }

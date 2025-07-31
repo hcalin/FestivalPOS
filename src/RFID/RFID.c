@@ -47,11 +47,11 @@ int MFRC522_wait_for_read()
 {
     // Reset the loop if no new card present on the sensor/reader. This saves
     // the entire process when idle.
-    while(1){
-    if (!rfid.PICC_IsNewCardPresent()) continue;
+    
+    if (!rfid.PICC_IsNewCardPresent()) return 0xFFU;
  
     // Verify if the NUID has been readed
-    if (!rfid.PICC_ReadCardSerial()) continue;
+    if (!rfid.PICC_ReadCardSerial()) return 0xFFU;
 
     //printf("PICC type: ");
     MFRC522::PICC_Type piccType = rfid.PICC_GetType(rfid.uid.sak);
@@ -91,5 +91,4 @@ int MFRC522_wait_for_read()
     // Stop encryption on PCD
     rfid.PCD_StopCrypto1();
     return READ_SUCCESSFULL; // end task
-  }
 }

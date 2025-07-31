@@ -7,7 +7,6 @@ WINDOW *bar,*admin;
 
 
 char* bar_items[ITEMS_IN_BAR] = {"Beer", "Wine" , "Palinka"};
-char* admin_items[ITEMS_IN_ADMIN] = {"ADD/R USER", "ADD/R GOLD" , "MODIFY NAME"};
 uint8_t bar_prices[ITEMS_IN_BAR] = {5, 5, 5};
 uint16_t u16_total = 0U;
 WINDOW *arr[ITEMS_IN_BAR];
@@ -94,7 +93,10 @@ void UI_print_check_bal()
 	print_center( 1, "SLOPE BAR *");
 	print_center( 10, "Waiting for scan ...");
 	
-	retVal = MFRC522_wait_for_read();
+	while( (retVal = MFRC522_wait_for_read())== 0xFFU) 
+	{
+		;
+	}
 	if (retVal == READ_SUCCESSFULL)
 	{
 		clear();
@@ -110,23 +112,23 @@ void UI_print_check_bal()
 			nuid |= (nuidPICC[idx] << ((3-idx) * 8)) ;
 			//mvwprintw(stdscr, 10 + idx, 25, "%x %d ", nuidPICC[idx],idx);
 		}
-		//mvwprintw(stdscr, 10, 35 , "%x", nuid);
 		
 		retVal = DB_nuid_exists(nuid, &DB_info);
 		if (retVal == 1U) // if RFID id exists in the database
 		{
-			//mvwprintw(checkout, 3, 10 , "Dear %s, %d %s", DB_info.name, DB_info.balance , DB_info.date_created);
 			mvwprintw(checkout, 4, 9 , "Name .............. ");
 			mvwprintw(checkout, 4, 29 , "%s",DB_info.name);
 			mvwprintw(checkout, 6, 9 , "Balance ........... ");
-			mvwprintw(checkout, 6, 29 , "%d lei",DB_info.balance);
+			mvwprintw(checkout, 6, 29 , "%.2f lei",DB_info.balance);
 			wprint_center(checkout, 13, "Created in:" );
 			mvwprintw(checkout, 15, 13, "%s", DB_info.date_created);
+			mvwprintw(checkout, 17, 18, "%x", nuid);
 		}
 		else if (retVal == 0U)
 		{
 			wprint_center(checkout, 8, "RFID bracelet is not in our database." );
 			wprint_center(checkout, 11, "That doesn't mean the beer is free..." );
+			mvwprintw(checkout, 17, 18, "%x", nuid);
 		}
 		else
 		{
@@ -158,57 +160,12 @@ void UI_print_check_bal()
 	
 }
 
-void UI_print_admin()
-{
-	char ch;
-	
-	print_center( 1, "ADMIN MENU *");
-	
-	backButton = newwin(3, 8, 21 ,5);
-	box(backButton, 0,0);
-	wprint_center_box(backButton, "BACK");
-	wrefresh(backButton);
-	
-	for (uint8_t idx = 0 ; idx < ITEMS_IN_ADMIN ; idx++)
-	{
-		if(arr[idx]) delwin(arr[idx]);
-		arr[idx] = newwin(10, 25, 3, 5 + idx * 5 + idx * 25);
-		box(arr[idx], 0,0);
-		wprint_center_box(arr[idx], admin_items[idx]); 
-		
-		
-		
-		wrefresh(arr[idx]);
-		refresh();
-	}
-		while ((ch = getch() != 'q')  )
-	{
-		if ( ch == 1 || ch == KEY_MOUSE ) 
-		{
-			if(getmouse(&event) == OK)
-			{	
-				if(wenclose(backButton, event.y , event.x))
-				{
-					for ( size_t idx = 0 ; idx < ITEMS_IN_ADMIN ; idx ++)
-					{
-						wclear(arr[idx]);
-						wrefresh(arr[idx]);
-					}
-					wclear(backButton);
-					wrefresh(backButton);
-					clear();
-					refresh();
-					window_type = BAR_ADMIN_MENU;
-					return;
-				}
-			}
-		}
-	}
-}
-
 void UI_print_checkout()
 {
 	char ch;
+	uint32_t nuid = 0;
+	int retVal;
+	DB_info_s DB_info;
 	
 	print_center( 1, "SLOPE BAR *");
 
@@ -233,30 +190,106 @@ void UI_print_checkout()
 	mvwprintw(checkout, 13, 27 , " TOTAL %d lei ", u16_total);
 	wprint_center(checkout , 16, " Waiting for scan ...");
 	wrefresh(checkout);
-	while ((ch = getch() != 'q')  )
+	timeout(0);
+	while (1)
 	{
-		if ( ch == 1 || ch == KEY_MOUSE ) 
-		{
-			if(getmouse(&event) == OK)
-			{	
-				if(wenclose(backButton, event.y , event.x))
-				{
-					refresh();
-					wclear(backButton);
-					wrefresh(backButton);
-					wclear(checkout);
-					wrefresh(checkout);
-					clear();
-					refresh();
-					/* Go back to BAR MENU and reset sum */ 
-					window_type = BAR_MENU;
-					for( size_t idx = 0 ; idx < ITEMS_IN_BAR; idx ++)
-					bar_quantity[idx] = 0U;
-					u16_total = 0U;
-					break;
+		if (ch = getch() != 'q')
+		{ 
+			if ( ch == 1 || ch == KEY_MOUSE ) 
+			{
+				if(getmouse(&event) == OK)
+				{	
+					if(wenclose(backButton, event.y , event.x))
+					{
+						refresh();
+						wclear(backButton);
+						wrefresh(backButton);
+						wclear(checkout);
+						wrefresh(checkout);
+						clear();
+						refresh();
+						/* Go back to BAR MENU and reset sum */ 
+						window_type = BAR_MENU;
+						for( size_t idx = 0 ; idx < ITEMS_IN_BAR; idx ++)
+						bar_quantity[idx] = 0U;
+						u16_total = 0U;
+						break;
+					}
 				}
 			}
 		}
+		
+		if(MFRC522_wait_for_read() == READ_SUCCESSFULL)
+		{
+			refresh();
+			wclear(backButton);
+			wrefresh(backButton);
+			wclear(checkout);
+			wrefresh(checkout);
+			clear();
+			refresh();
+			
+			
+			print_center( 1, "SLOPE BAR *");
+			checkout = newwin(20, 45, 4, 23);
+			box(checkout, 0,0);
+			wprint_center(checkout, 1, "< SCAN RESULTS >" );
+			wrefresh(checkout);
+			
+			for(size_t idx = 0; idx < 4; idx++)
+			{
+				nuid |= (nuidPICC[idx] << ((3-idx) * 8)) ;
+			}	
+			
+			if (DB_nuid_exists(nuid, &DB_info) == 1U)
+			{
+				if (DB_check_balance(nuid, &DB_info, u16_total) == 1U) // if balance is good enough
+				{
+					DB_info.balance -= u16_total; 
+					retVal = DB_modify_balance(nuid, DB_info.balance);
+
+					DB_update_payments(nuid, u16_total);
+					if (retVal == 0U)
+					{
+						mvwprintw(checkout, 5, 9 , "Name .............. ");
+						mvwprintw(checkout, 5, 29 , "%s",DB_info.name);
+						mvwprintw(checkout, 7, 9 , "New balance ........... ");
+						mvwprintw(checkout, 7, 29 , "%.2f lei",DB_info.balance);
+						wprint_center(checkout, 13, "Transaction is done.");
+						wrefresh(checkout);
+						refresh();
+					}
+					else
+					{
+						mvwprintw(checkout, 4, 9 , "Transaction Failed. Try again boss. ");
+						wrefresh(checkout);
+						refresh();
+					}
+				}
+				else
+				{
+					DB_check_balance(nuid, &DB_info, u16_total);
+					mvwprintw(checkout, 5, 9 , "Not enough gold dear warrior. ");
+					mvwprintw(checkout, 13, 9 , "Balance ........... ");
+					mvwprintw(checkout, 13, 29 , "%.2f lei",DB_info.balance);
+					
+					wrefresh(checkout);
+					refresh();
+				}
+			}
+			napms(3000); // Delay 3s 
+			wclear(checkout);
+			wrefresh(checkout);
+			refresh();
+			/* Go back to BAR MENU and reset sum */ 
+			window_type = BAR_MENU;
+			for( size_t idx = 0 ; idx < ITEMS_IN_BAR; idx ++)
+			bar_quantity[idx] = 0U;
+			u16_total = 0U;
+			break;
+		}
+		
+		
 	}
 }
 
@@ -302,13 +335,11 @@ void UI_check_bar()
 					{
 						wclear(arr[idx]);
 						wrefresh(arr[idx]);
-						//delwin(arr[idx]);
 					}
 					wclear(total);
 					wrefresh(total);
 					wclear(backButton);
 					wrefresh(backButton);
-					//delwin(total);
 					clear();
 					refresh();
 					return;
@@ -320,14 +351,12 @@ void UI_check_bar()
 					{
 						wclear(arr[idx]);
 						wrefresh(arr[idx]);
-						//delwin(arr[idx]);
 					}
 					
 					wclear(total);
 					wrefresh(total);
 					wclear(backButton);
 					wrefresh(backButton);
-					//delwin(total);
 					clear();
 					refresh();
 					
@@ -345,14 +374,12 @@ void UI_check_bar()
 					{
 						wclear(arr[idx]);
 						wrefresh(arr[idx]);
-						//delwin(arr[idx]);
 					}
 					
 					wclear(total);
 					wrefresh(total);
 					wclear(backButton);
 					wrefresh(backButton);
-					//delwin(total);
 					clear();
 					refresh();
 					
