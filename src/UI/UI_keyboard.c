@@ -8,6 +8,9 @@ char current_sign = '+';
 char final_result[10] = "";
 uint32_t number_after_ok;
 
+extern WINDOW *backButton;
+extern uint8_t window_type;
+
 #define NUMPAD_BUTTONS 13
 
 typedef struct {
@@ -26,7 +29,7 @@ NumpadButton *create_buttons(int height, int width) {
     int start_y = height/2 - 6;
 
     char *labels[] = {"7", "8", "9", "4", "5", "6", 
-                      "1", "2", "3", "0", "DEL", "+/-", "OK"};
+                      "1", "2", "3", "0", "DEL", " ", "OK"};
 
     for (int row = 0; row < 4; row++) {
         for (int col = 0; col < 3; col++) {
@@ -55,7 +58,7 @@ NumpadButton *create_buttons(int height, int width) {
 }
 
 void draw_sign(int height, int width) {
-    mvprintw(height/2 - 2, width/2 - 5, "Current Sign: %c", current_sign);
+    //mvprintw(height/2 - 2, width/2 - 5, "Current Sign: %c", current_sign);
 }
 
 void draw_input(int height, int width) {
@@ -87,8 +90,9 @@ void shift_buffer(char mode) {
     }
 }
 
-void UI_draw_numpad(uint32_t nuid, DB_info_s DB_info)
+int UI_draw_numpad(uint32_t nuid, DB_info_s DB_info)
 {
+	int retVal;
 	int height, width;
     getmaxyx(stdscr, height, width);
 
@@ -97,15 +101,21 @@ void UI_draw_numpad(uint32_t nuid, DB_info_s DB_info)
     draw_sign(height, width);
     draw_input(height, width);
     draw_numpad(buttons);
-    draw_result(height, width);
+    //draw_result(height, width);
     refresh();
-
     int ch;
     MEVENT event;
     while ((ch = getch()) != 'q') {
         if (ch == KEY_MOUSE) {
             if (getmouse(&event) == OK) {
                 for (int i = 0; i < NUMPAD_BUTTONS; i++) {
+					if(wenclose(backButton, event.y , event.x))
+					{
+						clear();
+						refresh();
+						window_type = BAR_ADMIN_MENU;
+						return 0xFF;
+					}
                     if (is_mouse_on_button(&event, &buttons[i])) {
                         if (strcmp(buttons[i].label, "+/-") == 0) {
                             current_sign = (current_sign == '+') ? '-' : '+';
@@ -116,15 +126,36 @@ void UI_draw_numpad(uint32_t nuid, DB_info_s DB_info)
                             char *temp = input_buffer;
                             while(*temp == '_') temp++;
                             
-                            number_after_ok = atoi(temp);
-                            if(current_sign == '-')
-								number_after_ok *= -1;
+                            number_after_ok = strtod(temp, NULL);
+                            //if(current_sign == '-')
+							//	number_after_ok *= -1;
                             
-                            //mvwprintw(stdscr, 1, 2, "%d", number_after_ok);
+                            mvwprintw(stdscr, 1, 2, "%f", number_after_ok);
                             
-                            DB_add_sold(nuid, number_after_ok);
-                            strcat(final_result, input_buffer);
-                            strcpy(input_buffer, "________");
+                            retVal = DB_add_sold(nuid, number_after_ok);
+                            if (retVal == 0)
+                            {
+								UI_clear_back_button();
+								DB_nuid_exists(nuid, &DB_info);
+								mvwprintw(stdscr, 9, 29 , "            ");
+											
+								mvwprintw(stdscr, 7, 9 , "Name .............. ");
+								mvwprintw(stdscr, 7, 29 , "%s",DB_info.name);
+								mvwprintw(stdscr, 9, 9 , "Balance ........... ");
+								mvwprintw(stdscr, 9, 29 , "%.2f lei",DB_info.balance);
+								mvwprintw(stdscr, 15, 13, "%s", DB_info.date_created);
+								mvwprintw(stdscr, 17, 18, "%x", nuid);
+								wrefresh(stdscr);
+								refresh();
+											
+								strcpy(input_buffer, "________");
+								napms(1500);
+								return 0xFF;
+							}
+							else
+							{
+								return -1;
+							}
                         } else {
                             shift_buffer('l');
                             input_buffer[7] = buttons[i].label[0];
@@ -133,7 +164,7 @@ void UI_draw_numpad(uint32_t nuid, DB_info_s DB_info)
                         draw_sign(height, width);
                         draw_input(height, width);
                         draw_numpad(buttons);
-                        draw_result(height, width);
+                        //draw_result(height, width);
                         refresh();
                         break;
                     }
@@ -141,5 +172,5 @@ void UI_draw_numpad(uint32_t nuid, DB_info_s DB_info)
             }
         }
     }
-
+	return 0;
 }

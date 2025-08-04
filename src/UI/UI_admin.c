@@ -1,7 +1,7 @@
 #include "UI.h"
 
 
-char* admin_items[ITEMS_IN_ADMIN] = {"ADD/R USER", "ADD/R GOLD" , "MODIFY NAME"};
+char* admin_items[ITEMS_IN_ADMIN] = {"ADD/R USER", "SET SOLD" , "MODIFY NAME"};
 
 extern WINDOW *arr[ITEMS_IN_BAR];
 extern uint8_t window_type;
@@ -15,8 +15,11 @@ void UI_print_admin()
 	char ch;
 	DB_info_s DB_info;
 	
-	print_center( 1, "ADMIN MENU *");
 	
+	clear();
+	refresh();
+	print_center( 1, "ADMIN MENU *");
+	refresh();
 	UI_create_back_button();
 	
 	for (uint8_t idx = 0 ; idx < ITEMS_IN_ADMIN ; idx++)
@@ -132,7 +135,10 @@ void UI_print_admin()
 										mvwprintw(stdscr, 17, 18, "%x", nuid);
 										wrefresh(stdscr);
 										refresh();	
-										UI_draw_numpad(nuid, DB_info);						
+										if (UI_draw_numpad(nuid, DB_info) == 0xFFu)
+										{
+											return;
+										}						
 									}
 								}
 							break;
@@ -177,6 +183,17 @@ void UI_admin_add_nuid(uint32_t nuid)
 					refresh();
 					break;
 				}
+				else 				if(wenclose(backButton, event.y , event.x))
+				{
+					for ( size_t idx = 0 ; idx < ITEMS_IN_ADMIN ; idx ++)
+					{
+						wclear(arr[idx]);
+						wrefresh(arr[idx]);
+					}
+					UI_clear_back_button();
+					window_type = BAR_ADMIN_MENU;
+					return;
+				}
 			}
 		}
 	}
@@ -210,6 +227,17 @@ void UI_admin_del_nuid(uint32_t nuid)
 					break;
 				}
 			}
+			else 				if(wenclose(backButton, event.y , event.x))
+				{
+					for ( size_t idx = 0 ; idx < ITEMS_IN_ADMIN ; idx ++)
+					{
+						wclear(arr[idx]);
+						wrefresh(arr[idx]);
+					}
+					UI_clear_back_button();
+					window_type = BAR_ADMIN_MENU;
+					return;
+				}
 		}
 	}	
 }
@@ -239,4 +267,29 @@ void UI_clear_back_button()
 	delwin(backButton);
 	clear();
 	refresh();
+}
+
+void UI_check_back_button()
+{
+	char ch;
+	while ((ch = getch() != 'q')  )
+	{
+		if ( ch == 1 || ch == KEY_MOUSE ) 
+		{
+			if(getmouse(&event) == OK)
+			{	
+				if(wenclose(backButton, event.y , event.x))
+				{
+					for ( size_t idx = 0 ; idx < ITEMS_IN_ADMIN ; idx ++)
+					{
+						wclear(arr[idx]);
+						wrefresh(arr[idx]);
+					}
+					UI_clear_back_button();
+					window_type = BAR_ADMIN_MENU;
+					return;
+				}
+			}
+		}
+	}
 }

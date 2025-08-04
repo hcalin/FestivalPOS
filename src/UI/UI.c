@@ -68,8 +68,11 @@ void UI_loop()
 			break;
 			case BAL_CHECK_MENU:
 				UI_print_check_bal();
-				break;
+			break;
 			case ADMIN_MAIN_MENU:
+				UI_check_admin();
+			break;
+			case ADMIN_MAIN_MENU_GRANTED:
 				UI_print_admin();
 			break;
 			default:
@@ -81,6 +84,94 @@ void UI_loop()
 		}
 	}
 }
+
+void UI_check_admin()
+{
+	DB_info_s DB_info;
+	uint32_t nuid = 0;
+	int retVal;
+	char ch;
+	int izAdmin = 0;
+	
+	print_center( 1, "Admin check");
+	print_center( 10, "Waiting for scan ...");
+	window_type = BAR_MENU;
+	while( (retVal = MFRC522_wait_for_read())== 0xFFU) 
+	{
+		;
+	}
+	if (retVal == READ_SUCCESSFULL)
+	{
+		checkout = newwin(20, 45, 4, 23);
+		//box(checkout, 0,0);
+		clear();
+		refresh();
+		wrefresh(checkout);
+		
+		for(size_t idx = 0; idx < 4; idx++)
+		{
+			nuid |= (nuidPICC[idx] << ((3-idx) * 8)) ;
+			//mvwprintw(stdscr, 10 + idx, 25, "%x %d ", nuidPICC[idx],idx);
+		}
+		
+		retVal = DB_nuid_exists(nuid, &DB_info);
+		if (retVal == 1U) // if RFID id exists in the database
+		{
+			retVal = DB_check_admin(nuid, &DB_info);
+			if (retVal == 0U)
+			{
+				wprint_center(checkout, 8, "Dafaq you doing here mate?" );
+				wrefresh(checkout);
+				refresh();
+			}
+			else{
+				wprint_center(checkout, 11, "Access granted. You're the boss!" );
+				window_type = ADMIN_MAIN_MENU_GRANTED;
+				izAdmin = 1U;
+			}
+		}
+		else if (retVal == 0U)
+		{
+			wprint_center(checkout, 8, "RFID bracelet is not in our database." );
+			wprint_center(checkout, 11, "Ask an admin to add your bracelet." );
+			mvwprintw(checkout, 17, 18, "%x", nuid);
+		}
+		else
+		{
+			wprint_center(checkout, 9, "Connection to the database failed. This is shit." );
+		}
+
+	}
+	else
+	{
+		wprint_center(checkout, 9, "RFID TYPE NOT SUPPORTED BY THE READER" );
+
+	}
+	wrefresh(checkout);
+	refresh();
+	
+	while ((ch = getch() != 'q')  )
+	{
+		if ( ch == 1 || ch == KEY_MOUSE ) 
+		{
+			if(getmouse(&event) == OK)
+			{	
+					clear();
+					refresh();
+					if (izAdmin == 1)
+					{
+						window_type = ADMIN_MAIN_MENU_GRANTED;
+					}
+					else
+					{
+						window_type = BAR_ADMIN_MENU;
+					} 
+					return;
+			}
+		}
+	}	
+}
+
 
 void UI_print_check_bal()
 {
@@ -405,6 +496,7 @@ void UI_print_bar()
 	if(total) delwin(total);
 	total = newwin(5,21,20,75);
 	box(total, 0,0);
+	wrefresh(total);
 	
 	for (uint8_t idx = 0 ; idx < ITEMS_IN_BAR ; idx++)
 	{
