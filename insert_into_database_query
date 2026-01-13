@@ -1,0 +1,1 @@
+INSERT INTO Users (RFID, Name, sold, isAdmin) VALUES (1234, 'Dummy User', 0.0,0 )

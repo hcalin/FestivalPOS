@@ -6,8 +6,8 @@ MEVENT event; // Mouse event
 WINDOW *bar,*admin;
 
 
-char* bar_items[ITEMS_IN_BAR] = {"Beer", "Wine" , "Palinka"};
-uint8_t bar_prices[ITEMS_IN_BAR] = {5, 5, 5};
+char* bar_items[ITEMS_IN_BAR] = {"Beer/Wine", "Cocktail" , "Ice cream"};
+uint8_t bar_prices[ITEMS_IN_BAR] = {8, 20, 15};
 uint16_t u16_total = 0U;
 WINDOW *arr[ITEMS_IN_BAR];
 WINDOW *total,*checkout;
@@ -220,6 +220,7 @@ void UI_print_check_bal()
 			wprint_center(checkout, 8, "RFID bracelet is not in our database." );
 			wprint_center(checkout, 11, "That doesn't mean the beer is free..." );
 			mvwprintw(checkout, 17, 18, "%x", nuid);
+			mvwprintw(checkout, 19, 18, "%d", nuid);
 		}
 		else
 		{
@@ -367,6 +368,11 @@ void UI_print_checkout()
 					wrefresh(checkout);
 					refresh();
 				}
+			}
+			else{
+				mvwprintw(checkout, 13, 29, "The bracelet is not in the database.");
+				wrefresh(checkout);
+				refresh();
 			}
 			napms(3000); // Delay 3s 
 			wclear(checkout);
